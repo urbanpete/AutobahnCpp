@@ -28,36 +28,32 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef AUTOBAHN_WAMP_CALL_OPTIONS_HPP
-#define AUTOBAHN_WAMP_CALL_OPTIONS_HPP
+#ifndef AUTOBAHN_WAMP_YIELD_OPTIONS_HPP
+#define AUTOBAHN_WAMP_YIELD_OPTIONS_HPP
 
 #include <chrono>
 
 namespace autobahn {
 
-class wamp_call_options
+class wamp_yield_options
 {
 public:
-    wamp_call_options();
+    wamp_yield_options();
 
-    wamp_call_options(wamp_call_options&& other) = delete;
-    wamp_call_options(const wamp_call_options& other) = delete;
-    wamp_call_options& operator=(wamp_call_options&& other) = delete;
-    wamp_call_options& operator=(const wamp_call_options& other) = delete;
+    wamp_yield_options(wamp_yield_options&& other);
+    wamp_yield_options(const wamp_yield_options& other);
+    wamp_yield_options& operator=(wamp_yield_options&& other);
+    wamp_yield_options& operator=(const wamp_yield_options& other);
 
-    bool receive_progress() const;
-    void set_receive_progress(bool enabled);
-
-    const std::chrono::milliseconds& timeout() const;
-    void set_timeout(const std::chrono::milliseconds& timeout);
+    bool progress() const;
+    void set_progress(bool in_progress);
 
 private:
-    bool m_receive_progress;
-    std::chrono::milliseconds m_timeout;
+    bool m_progress;
 };
 
 } // namespace autobahn
 
-#include "wamp_call_options.ipp"
+#include "wamp_yield_options.ipp"
 
-#endif // AUTOBAHN_WAMP_CALL_OPTIONS_HPP
+#endif // AUTOBAHN_WAMP_YIELD_OPTIONS_HPP

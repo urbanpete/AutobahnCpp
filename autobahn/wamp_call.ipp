@@ -35,14 +35,14 @@ inline wamp_call::wamp_call()
 {
 }
 
-inline boost::promise<wamp_call_result>& wamp_call::result()
+inline boost::promise<wamp_result>& wamp_call::result()
 {
     return m_result;
 }
 
-inline void wamp_call::set_result(wamp_call_result&& value)
+inline void wamp_call::set_result(wamp_result&& result)
 {
-    m_result.set_value(std::move(value));
+    m_result.set_value(std::move(result));
 }
 
 } // namespace autobahn

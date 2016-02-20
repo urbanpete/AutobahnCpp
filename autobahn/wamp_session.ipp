@@ -145,12 +145,14 @@ inline boost::future<uint64_t> wamp_session::join(
     std::unordered_map<std::string, msgpack::object> roles;
 
     std::unordered_map<std::string, bool> caller_features;
+    caller_features["progressive_results"] = true;
     caller_features["call_timeout"] = true;
     std::unordered_map<std::string, msgpack::object> caller;
     caller["features"] = msgpack::object(caller_features, zone);
     roles["caller"] = msgpack::object(caller, zone);
 
     std::unordered_map<std::string, bool> callee_features;
+    callee_features["progressive_results"] = true;
     callee_features["call_timeout"] = true;
     std::unordered_map<std::string, msgpack::object> callee;
     callee["features"] = msgpack::object(callee_features, zone);
@@ -385,7 +387,7 @@ inline boost::future<void> wamp_session::unsubscribe(const wamp_subscription& su
     return unsubscribe_request->response().get_future();
 }
 
-inline boost::future<wamp_call_result> wamp_session::call(
+inline boost::future<wamp_result> wamp_session::call(
         const std::string& procedure,
         const wamp_call_options& options)
 {
@@ -418,7 +420,7 @@ inline boost::future<wamp_call_result> wamp_session::call(
 }
 
 template<typename List>
-inline boost::future<wamp_call_result> wamp_session::call(
+inline boost::future<wamp_result> wamp_session::call(
         const std::string& procedure,
         const List& arguments,
         const wamp_call_options& options)
@@ -453,7 +455,7 @@ inline boost::future<wamp_call_result> wamp_session::call(
 }
 
 template<typename List, typename Map>
-inline boost::future<wamp_call_result> wamp_session::call(
+inline boost::future<wamp_result> wamp_session::call(
         const std::string& procedure,
         const List& arguments,
         const Map& kw_arguments,
@@ -634,7 +636,7 @@ inline void wamp_session::on_message(wamp_message&& message)
         case message_type::CANCEL:
             throw protocol_error("received CANCEL message unexpected for WAMP client roles");
         case message_type::RESULT:
-            process_call_result(std::move(message));
+            process_result(std::move(message));
             break;
         case message_type::REGISTER:
             throw protocol_error("received REGISTER message unexpected for WAMP client roles");
@@ -1013,7 +1015,7 @@ inline void wamp_session::process_invocation(wamp_message&& message)
     }
 }
 
-inline void wamp_session::process_call_result(wamp_message&& message)
+inline void wamp_session::process_result(wamp_message&& message)
 {
     // [RESULT, CALL.Request|id, Details|dict]
     // [RESULT, CALL.Request|id, Details|dict, YIELD.Arguments|list]
@@ -1030,11 +1032,13 @@ inline void wamp_session::process_call_result(wamp_message&& message)
 
     auto call_itr = m_calls.find(request_id);
     if (call_itr != m_calls.end()) {
+        wamp_result result(std::move(message.zone()));
+
         if (!message.is_field_type(2, msgpack::type::MAP)) {
             throw protocol_error("RESULT - Details must be a dictionary");
         }
+        auto details = message.field<wamp_result_details>(2);
 
-        wamp_call_result result(std::move(message.zone()));
         if (message.size() > 3) {
             if (!message.is_field_type(3, msgpack::type::ARRAY)) {
                 throw protocol_error("RESULT - YIELD.Arguments must be a list");
@@ -1048,8 +1052,14 @@ inline void wamp_session::process_call_result(wamp_message&& message)
                 result.set_kw_arguments(message.field(4));
             }
         }
+
         call_itr->second->set_result(std::move(result));
-        m_calls.erase(call_itr);
+
+        // If the call progress is finished then it is now safe to remove the
+        // call itself as there will be no more results.
+        if (!details.progress()) {
+            m_calls.erase(call_itr);
+        }
     } else {
         throw protocol_error("bogus RESULT message for non-pending request ID");
     }

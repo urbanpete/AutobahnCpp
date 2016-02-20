@@ -32,7 +32,7 @@
 #define AUTOBAHN_SESSION_HPP
 
 #include "wamp_call_options.hpp"
-#include "wamp_call_result.hpp"
+#include "wamp_result.hpp"
 #include "wamp_event_handler.hpp"
 #include "wamp_message.hpp"
 #include "wamp_procedure.hpp"
@@ -193,7 +193,7 @@ public:
      * \param options The options to pass in the call to the router.
      * \return A future that resolves to the result of the remote procedure call.
      */
-    boost::future<wamp_call_result> call(
+    boost::future<wamp_result> call(
             const std::string& procedure,
             const wamp_call_options& options = wamp_call_options());
 
@@ -206,7 +206,7 @@ public:
      * \return A future that resolves to the result of the remote procedure call.
      */
     template <typename List>
-    boost::future<wamp_call_result> call(
+    boost::future<wamp_result> call(
             const std::string& procedure,
             const List& arguments,
             const wamp_call_options& options = wamp_call_options());
@@ -221,7 +221,7 @@ public:
      * \return A future that resolves to the result of the remote procedure call.
      */
     template<typename List, typename Map>
-    boost::future<wamp_call_result> call(
+    boost::future<wamp_result> call(
             const std::string& procedure,
             const List& arguments, const Map& kw_arguments,
             const wamp_call_options& options = wamp_call_options());
@@ -260,7 +260,7 @@ private:
     void process_welcome(wamp_message&& message);
     void process_abort(wamp_message&& message);
     void process_challenge(wamp_message&& message);
-    void process_call_result(wamp_message&& message);
+    void process_result(wamp_message&& message);
     void process_subscribed(wamp_message&& message);
     void process_unsubscribed(wamp_message&& message);
     void process_event(wamp_message&& message);

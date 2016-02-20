@@ -35,57 +35,74 @@
 
 namespace autobahn {
 
-inline wamp_call_result::wamp_call_result()
+inline wamp_result::wamp_result()
     : m_zone()
+    , m_details()
     , m_arguments(EMPTY_ARGUMENTS)
     , m_kw_arguments(EMPTY_KW_ARGUMENTS)
 {
 }
 
-inline wamp_call_result::wamp_call_result(msgpack::zone&& zone)
+inline wamp_result::wamp_result(msgpack::zone&& zone)
     : m_zone(std::move(zone))
+    , m_details()
     , m_arguments(EMPTY_ARGUMENTS)
     , m_kw_arguments(EMPTY_KW_ARGUMENTS)
 {
 }
 
-inline wamp_call_result::wamp_call_result(wamp_call_result&& other)
+inline wamp_result::wamp_result(wamp_result&& other)
     : m_zone(std::move(other.m_zone))
+    , m_details(std::move(other.m_details))
     , m_arguments(other.m_arguments)
     , m_kw_arguments(other.m_kw_arguments)
 {
+    other.m_details.clear();
     other.m_arguments = EMPTY_ARGUMENTS;
     other.m_kw_arguments = EMPTY_KW_ARGUMENTS;
 }
 
-inline wamp_call_result& wamp_call_result::operator=(wamp_call_result&& other)
+
+inline wamp_result& wamp_result::operator=(wamp_result&& other)
 {
     if (this == &other) {
         return *this;
     }
 
+    m_details = std::move(other.m_details);
     m_arguments = other.m_arguments;
     m_kw_arguments = other.m_kw_arguments;
     m_zone = std::move(other.m_zone);
 
+    other.m_details.clear();
     other.m_arguments = EMPTY_ARGUMENTS;
     other.m_kw_arguments = EMPTY_KW_ARGUMENTS;
 
     return *this;
 }
 
-inline std::size_t wamp_call_result::number_of_arguments() const
+inline wamp_result_details& details()
+{
+    return m_details;
+}
+
+inline const wamp_result_details& details() const
+{
+    return m_details;
+}
+
+inline std::size_t wamp_result::number_of_arguments() const
 {
     return m_arguments.type == msgpack::type::ARRAY ? m_arguments.via.array.size : 0;
 }
 
-inline std::size_t wamp_call_result::number_of_kw_arguments() const
+inline std::size_t wamp_result::number_of_kw_arguments() const
 {
     return m_kw_arguments.type == msgpack::type::MAP ? m_kw_arguments.via.map.size : 0;
 }
 
 template <typename T>
-inline T wamp_call_result::argument(std::size_t index) const
+inline T wamp_result::argument(std::size_t index) const
 {
     if (m_arguments.type != msgpack::type::ARRAY || m_arguments.via.array.size <= index) {
         throw std::out_of_range("no argument at index " + boost::lexical_cast<std::string>(index));
@@ -94,26 +111,26 @@ inline T wamp_call_result::argument(std::size_t index) const
 }
 
 template <typename List>
-inline List wamp_call_result::arguments() const
+inline List wamp_result::arguments() const
 {
     return m_arguments.as<List>();
 }
 
 template <typename List>
-inline void wamp_call_result::get_arguments(List& args) const
+inline void wamp_result::get_arguments(List& args) const
 {
     m_arguments.convert(args);
 }
 
 template <typename... T>
-inline void wamp_call_result::get_each_argument(T&... args) const
+inline void wamp_result::get_each_argument(T&... args) const
 {
     auto args_tuple = std::make_tuple(std::ref(args)...);
     m_arguments.convert(args_tuple);
 }
 
 template <typename T>
-inline T wamp_call_result::kw_argument(const std::string& key) const
+inline T wamp_result::kw_argument(const std::string& key) const
 {
     if (m_kw_arguments.type != msgpack::type::MAP) {
         throw msgpack::type_error();
@@ -130,7 +147,7 @@ inline T wamp_call_result::kw_argument(const std::string& key) const
 }
 
 template <typename T>
-inline T wamp_call_result::kw_argument(const char* key) const
+inline T wamp_result::kw_argument(const char* key) const
 {
     if (m_kw_arguments.type != msgpack::type::MAP) {
         throw msgpack::type_error();
@@ -148,7 +165,7 @@ inline T wamp_call_result::kw_argument(const char* key) const
 }
 
 template <typename T>
-inline T wamp_call_result::kw_argument_or(const std::string& key, const T& fallback) const
+inline T wamp_result::kw_argument_or(const std::string& key, const T& fallback) const
 {
     if (m_kw_arguments.type != msgpack::type::MAP) {
         throw msgpack::type_error();
@@ -165,7 +182,7 @@ inline T wamp_call_result::kw_argument_or(const std::string& key, const T& fallb
 }
 
 template <typename T>
-inline T wamp_call_result::kw_argument_or(const char* key, const T& fallback) const
+inline T wamp_result::kw_argument_or(const char* key, const T& fallback) const
 {
     if (m_kw_arguments.type != msgpack::type::MAP) {
         throw msgpack::type_error();
@@ -183,23 +200,28 @@ inline T wamp_call_result::kw_argument_or(const char* key, const T& fallback) co
 }
 
 template <typename Map>
-inline Map wamp_call_result::kw_arguments() const
+inline Map wamp_result::kw_arguments() const
 {
     return m_kw_arguments.as<Map>();
 }
 
 template <typename Map>
-inline void wamp_call_result::get_kw_arguments(Map& kw_args) const
+inline void wamp_result::get_kw_arguments(Map& kw_args) const
 {
     m_kw_arguments.convert(kw_args);
 }
 
-inline void wamp_call_result::set_arguments(const msgpack::object& arguments)
+inline void wamp_result::set_details(wamp_result_details&& details)
+{
+    m_details = std::move(details);
+}
+
+inline void wamp_result::set_arguments(const msgpack::object& arguments)
 {
     m_arguments = arguments;
 }
 
-inline void wamp_call_result::set_kw_arguments(const msgpack::object& kw_arguments)
+inline void wamp_result::set_kw_arguments(const msgpack::object& kw_arguments)
 {
     m_kw_arguments = kw_arguments;
 }

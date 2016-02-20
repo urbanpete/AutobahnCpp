@@ -34,30 +34,51 @@
 
 namespace autobahn {
 
-inline wamp_call_options::wamp_call_options()
-    : m_receive_progress(false)
-    , m_timeout()
+inline wamp_result_details::wamp_result_details()
+    : m_progress(false)
 {
 }
 
-bool wamp_call_options::receive_progress() const
+inline wamp_result_details::wamp_result_details(wamp_result_details&& other)
+    : m_progress(std::move(other.m_progress))
 {
-    return m_receive_progress;
 }
 
-void wamp_call_options::set_receive_progress(bool enabled)
+inline wamp_result_details::wamp_result_details(const wamp_result_details& other)
+    : m_progress(other.m_progress)
 {
-    m_receive_progress = enabled;
 }
 
-inline const std::chrono::milliseconds& wamp_call_options::timeout() const
+inline wamp_result_details& wamp_result_details::operator=(wamp_result_details&& other)
 {
-    return m_timeout;
+    if (this == &other) {
+        return *this;
+    }
+
+    m_progress = std::move(other.m_progress);
+
+    return *this;
 }
 
-inline void wamp_call_options::set_timeout(const std::chrono::milliseconds& timeout)
+inline wamp_result_details& wamp_result_details::operator=(const wamp_result_details& other)
 {
-    m_timeout = timeout;
+    if (this == &other) {
+        return *this;
+    }
+
+    m_progress = other.m_progress;
+
+    return *this;
+}
+
+inline bool wamp_result_details::progress() const
+{
+    return m_progress;
+}
+
+inline void wamp_result_details::set_progress(bool progress)
+{
+    m_progress = progress;
 }
 
 } // namespace autobahn
@@ -67,23 +88,18 @@ MSGPACK_API_VERSION_NAMESPACE(MSGPACK_DEFAULT_API_NS) {
 namespace adaptor {
 
 template<>
-struct convert<autobahn::wamp_call_options>
+struct convert<autobahn::wamp_result_details>
 {
     msgpack::object const& operator()(
             msgpack::object const& object,
-            autobahn::wamp_call_options& options) const
+            autobahn::wamp_result_details& details) const
     {
-        std::unordered_map<std::string, msgpack::object> options_map;
-        object.convert(options_map);
+        std::unordered_map<std::string, msgpack::object> details_map;
+        object >> details_map;
 
-        auto options_map_itr = options_map.find("receive_progress");
-        if (options_map_itr != options_map.end()) {
-            options.set_receive_progress(options_map_itr->second.as<bool>());
-        }
-
-        options_map_itr = options_map.find("timeout");
-        if (options_map_itr != options_map.end()) {
-            options.set_timeout(std::chrono::milliseconds(options_map_itr->second.as<unsigned>()));
+        auto details_map_itr = details_map.find("progress");
+        if (details_map_itr != details_map.end()) {
+            details.set_progress(details_map_itr->second.as<bool>());
         }
 
         return object;
@@ -91,51 +107,40 @@ struct convert<autobahn::wamp_call_options>
 };
 
 template<>
-struct pack<autobahn::wamp_call_options>
+struct pack<autobahn::wamp_result_details>
 {
     template <typename Stream>
     msgpack::packer<Stream>& operator()(
             msgpack::packer<Stream>& packer,
-            autobahn::wamp_call_options const& options) const
+            autobahn::wamp_result_details const& details) const
     {
-        std::unordered_map<std::string, unsigned> options_map;
-
-        bool receive_progress = options.receive_progress();
-        if (receive_progress) {
-            options_map["receive_progress"] = receive_progress;
+        std::unordered_map<std::string, unsigned> details_map;
+        bool progress = details.progress();
+        if (progress) {
+            details_map["progress"] = progress;
         }
 
-        const auto& timeout = options.timeout();
-        if (timeout.count() > 0) {
-            options_map["timeout"] = timeout.count();
-        }
-
-        packer.pack(options_map);
+        packer.pack(details_map);
 
         return packer;
     }
 };
 
 template <>
-struct object_with_zone<autobahn::wamp_call_options>
+struct object_with_zone<autobahn::wamp_result_details>
 {
     void operator()(
             msgpack::object::with_zone& object,
-            const autobahn::wamp_call_options& options)
+            const autobahn::wamp_result_details& details)
     {
-        std::unordered_map<std::string, msgpack::object> options_map;
+        std::unordered_map<std::string, msgpack::object> details_map;
 
-        bool receive_progress = options.receive_progress();
-        if (receive_progress) {
-            options_map["receive_progress"] = msgpack::object(receive_progress);
+        bool progress = details.progress();
+        if (progress) {
+            details_map["progress"] = msgpack::object(progress);
         }
 
-        const auto& timeout = options.timeout();
-        if (timeout.count() != 0) {
-            options_map["timeout"] = msgpack::object(timeout.count());
-        }
-
-        object << options_map;
+        object << details_map;
     }
 };
 

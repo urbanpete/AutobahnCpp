@@ -43,8 +43,8 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/autobahn/wamp_call.ipp
     ${CMAKE_CURRENT_SOURCE_DIR}/autobahn/wamp_call_options.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/autobahn/wamp_call_options.ipp
-    ${CMAKE_CURRENT_SOURCE_DIR}/autobahn/wamp_call_result.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/autobahn/wamp_call_result.ipp
+    ${CMAKE_CURRENT_SOURCE_DIR}/autobahn/wamp_result.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/autobahn/wamp_result.ipp
     ${CMAKE_CURRENT_SOURCE_DIR}/autobahn/wamp_challenge.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/autobahn/wamp_challenge.ipp
     ${CMAKE_CURRENT_SOURCE_DIR}/autobahn/wamp_event.hpp

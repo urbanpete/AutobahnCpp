@@ -36,17 +36,27 @@
 
 namespace autobahn {
 
-class wamp_call_result
+class wamp_result
 {
 public:
-    wamp_call_result();
-    wamp_call_result(msgpack::zone&& zone);
+    wamp_result();
+    wamp_result(msgpack::zone&& zone);
 
-    wamp_call_result(const wamp_call_result& other) = delete;
-    wamp_call_result(wamp_call_result&& other);
+    wamp_result(const wamp_result& other) = delete;
+    wamp_result(wamp_result&& other);
 
-    wamp_call_result& operator=(const wamp_call_result& other) = delete;
-    wamp_call_result& operator=(wamp_call_result&& other);
+    wamp_result& operator=(const wamp_result& other) = delete;
+    wamp_result& operator=(wamp_result&& other);
+
+    /*!
+     * The details associated with the result.
+     */
+    wamp_result_details& details();
+
+    /*!
+     * The details associated with the result.
+     */
+    const wamp_result_details& details() const;
 
     /*!
      * The number of positional arguments returned from the call.
@@ -187,18 +197,19 @@ public:
 
     //
     // functions only called internally by wamp_session
-
+    void set_details(wamp_result_details&& details);
     void set_arguments(const msgpack::object& arguments);
     void set_kw_arguments(const msgpack::object& kw_arguments);
 
 private:
     msgpack::zone m_zone;
+    wamp_result_details m_details;
     msgpack::object m_arguments;
     msgpack::object m_kw_arguments;
 };
 
 } // namespace autobahn
 
-#include "wamp_call_result.ipp"
+#include "wamp_result.ipp"
 
 #endif // AUTOBAHN_WAMP_CALL_RESULT_HPP
