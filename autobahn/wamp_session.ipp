@@ -67,7 +67,7 @@ inline wamp_session::wamp_session(
     : m_debug_enabled(debug_enabled)
     , m_io_service(io_service)
     , m_transport()
-    , m_request_id(ATOMIC_VAR_INIT(0))
+    , m_request_id(0)
     , m_session_id(0)
     , m_goodbye_sent(false)
     , m_running(false)
@@ -367,7 +367,7 @@ inline boost::future<void> wamp_session::unsubscribe(const wamp_subscription& su
     message->set_field(2, subscription.id());
 
     auto weak_self = std::weak_ptr<wamp_session>(this->shared_from_this());
-    auto unsubscribe_request = std::make_shared<wamp_unsubscribe_request>();
+    auto unsubscribe_request = std::make_shared<wamp_unsubscribe_request>(subscription);
 
     m_io_service.dispatch([=]() {
         auto shared_self = weak_self.lock();
@@ -523,7 +523,8 @@ inline boost::future<wamp_registration> wamp_session::provide(
     return register_request->response().get_future();
 }
 
-inline boost::future<void> wamp_session::unprovide(const wamp_registration& registration){
+inline boost::future<void> wamp_session::unprovide(const wamp_registration& registration)
+{
     uint64_t request_id = ++m_request_id;
 
 	auto message = std::make_shared<wamp_message>(3);
@@ -532,7 +533,7 @@ inline boost::future<void> wamp_session::unprovide(const wamp_registration& regi
 	message->set_field(2, registration.id());
 
 	auto weak_self = std::weak_ptr<wamp_session>(this->shared_from_this());
-	auto unregister_request = std::make_shared<wamp_unregister_request>();
+	auto unregister_request = std::make_shared<wamp_unregister_request>(registration);
 
 	m_io_service.dispatch([=]() {
 		auto shared_self = weak_self.lock();
@@ -552,7 +553,7 @@ inline boost::future<void> wamp_session::unprovide(const wamp_registration& regi
 	return unregister_request->response().get_future();
 }
 
-boost::future<wamp_authenticate> wamp_session::on_challenge(const wamp_challenge& challenge)
+inline boost::future<wamp_authenticate> wamp_session::on_challenge(const wamp_challenge& challenge)
 {
     // a dummy implementation
     boost::promise<wamp_authenticate> dummy;
@@ -686,7 +687,7 @@ inline void wamp_session::on_message(wamp_message&& message)
     }
 }
 
-void wamp_session::process_challenge(wamp_message&& message)
+inline void wamp_session::process_challenge(wamp_message&& message)
 {
     // kind of authentication
     std::string whatAuth = message.field<std::string>(1);
@@ -738,7 +739,7 @@ void wamp_session::process_challenge(wamp_message&& message)
             // make the challenge object
             challenge_object = wamp_challenge("wampcra",challenge,salt,iterations,keylen);
 
-        } catch (const std::exception& e) {
+        } catch (const std::exception&) {
             if (m_debug_enabled) {
                 std::cerr << "failed to parse challenge details" << std::endl;
             }
@@ -780,7 +781,7 @@ void wamp_session::process_challenge(wamp_message&& message)
 
                 try {
                     send_message(std::move(*message), false);
-                } catch (const std::exception& e) {
+                } catch (const std::exception&) {
                     if (m_debug_enabled) {
                         std::cerr << "failed to handle authentication" << std::endl;
                     }
@@ -790,7 +791,7 @@ void wamp_session::process_challenge(wamp_message&& message)
 
             // make sure the context_response is copied into this lambda...
             context_response.get();
-        } catch (const std::exception& e) {
+        } catch (const std::exception&) {
             if (m_debug_enabled) {
                 std::cerr << "failed to handle authentication" << std::endl;
             }
@@ -815,12 +816,12 @@ inline void wamp_session::process_abort(wamp_message&& message)
     }
 
     // Details|dict
-    if (message.is_field_type(1, msgpack::type::MAP)) {
+    if (!message.is_field_type(1, msgpack::type::MAP)) {
         throw protocol_error("ABORT - Details must be a dictionary");
     }
 
     // Reason|uri
-    if (message.is_field_type(2, msgpack::type::STR)) {
+    if (!message.is_field_type(2, msgpack::type::STR)) {
         throw protocol_error("ABORT - REASON must be a string (URI)");
     }
 
@@ -891,7 +892,7 @@ inline void wamp_session::process_error(wamp_message&& message)
     if (!message.is_field_type(4, msgpack::type::STR)) {
         throw protocol_error("invalid ERROR message - Error must be a string (URI)");
     }
-    auto error = std::move(message.field<std::string>(4));
+    auto error = message.field<std::string>(4);
 
     // Arguments|list
     if (message.size() > 5) {
@@ -912,7 +913,7 @@ inline void wamp_session::process_error(wamp_message&& message)
                 error += ": ";
                 error += itr->second;
             }
-        } catch (const std::exception& e) {
+        } catch (const std::exception&) {
             if (m_debug_enabled) {
                 std::cerr << "failed to parse error message keyword arguments" << std::endl;
             }
@@ -1128,6 +1129,8 @@ inline void wamp_session::process_unsubscribed(wamp_message&& message)
 
     auto unsubscribe_request_itr = m_unsubscribe_requests.find(request_id);
     if (unsubscribe_request_itr != m_unsubscribe_requests.end()) {
+        uint64_t subscription_id = unsubscribe_request_itr->second->subscription().id();
+        m_subscription_handlers.erase(subscription_id);
         unsubscribe_request_itr->second->set_response();
         m_unsubscribe_requests.erase(request_id);
     } else {
@@ -1245,10 +1248,11 @@ inline void wamp_session::process_unregistered(wamp_message&& message)
         throw protocol_error("UNREGISTERED - UNREGISTERED.Request must be an integer");
     }
 
-    // TODO:: release m_procedures[] registered callback
-	uint64_t request_id = message.field<uint64_t>(1);
+    uint64_t request_id = message.field<uint64_t>(1);
 	auto unregister_request_itr = m_unregister_requests.find(request_id);
     if (unregister_request_itr != m_unregister_requests.end()) {
+        uint64_t registration_id = unregister_request_itr->second->registration().id();
+        m_procedures.erase(registration_id);
         unregister_request_itr->second->set_response();
         m_unregister_requests.erase(request_id);
     } else {
