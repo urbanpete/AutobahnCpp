@@ -349,6 +349,11 @@ inline void wamp_invocation_impl::set_details(const msgpack::object& details)
     m_progressive_results_expected = value_for_key_or<bool>(details, "receive_progress", false);
 }
 
+inline std::uint64_t wamp_invocation_impl::get_request_id()
+{
+    return m_request_id;
+}
+
 inline void wamp_invocation_impl::set_request_id(std::uint64_t request_id)
 {
     m_request_id = request_id;
