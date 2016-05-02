@@ -72,6 +72,7 @@ class wamp_registration;
 class wamp_subscribe_request;
 class wamp_subscription;
 class wamp_transport;
+class wamp_unregister_request;
 class wamp_unsubscribe_request;
 class wamp_authenticate;
 class wamp_challenge;
@@ -177,7 +178,7 @@ public:
             const wamp_subscribe_options& options = wamp_subscribe_options());
 
     /*!
-     * Unubscribe a handler to previosuly subscribed topic.
+     * Unubscribe a handler to previously subscribed topic.
      *
      * \param subscription The subscription to unsubscribe from.
      * \return A future that resolves to the unsubscribed response.
@@ -236,6 +237,14 @@ public:
             const std::string& uri,
             const wamp_procedure& procedure,
             const provide_options& options = provide_options());
+
+    /*!
+    * Unregister a handler to previosly registered service.
+    *
+    * \param registration The registration to unregister.
+    * \return A future that resolves to the unregistered response.
+    */
+    boost::future<void> wamp_session::unprovide(const wamp_registration& registration);
 
     /*!
      * Function called by the session when authenticating. It always has to be
@@ -297,6 +306,7 @@ private:
     void process_unsubscribed(wamp_message&& message);
     void process_event(wamp_message&& message);
     void process_registered(wamp_message&& message);
+    void process_unregistered(wamp_message&& message);
     void process_invocation(wamp_message&& message);
     void process_goodbye(wamp_message&& message);
 
@@ -362,6 +372,9 @@ private:
 
     // Map of outstanding WAMP register requests (request ID -> register request).
     std::map<uint64_t, std::shared_ptr<wamp_register_request>> m_register_requests;
+
+    // Map of outstanding WAMP unregister requests (request ID -> unregister request).
+    std::map<uint64_t, std::shared_ptr<wamp_unregister_request>> m_unregister_requests;
 
     // Map of registered procedures (registration ID -> procedure)
     std::map<uint64_t, wamp_procedure> m_procedures;
