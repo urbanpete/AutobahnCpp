@@ -30,6 +30,7 @@
 
 #include "exceptions.hpp"
 #include "wamp_call.hpp"
+#include "wamp_error.hpp"
 #include "wamp_event.hpp"
 #include "wamp_invocation.hpp"
 #include "wamp_message.hpp"
@@ -905,20 +906,6 @@ inline void wamp_session::process_error(wamp_message&& message)
         if (!message.is_field_type(6, msgpack::type::MAP)) {
             throw protocol_error("invalid ERROR message structure - ArgumentsKw must be a dictionary");
         }
-        try {
-            auto kw_args = message.field<std::unordered_map<std::string, std::string>>(6);
-            const auto itr = kw_args.find("what");
-            if (itr != kw_args.end()) {
-                error += ": ";
-                error += itr->second;
-            }
-        } catch (const std::exception& e) {
-            if (m_debug_enabled) {
-                std::cerr << "failed to parse error message keyword arguments" << std::endl;
-            }
-
-            error += ": unknown exception";
-        }
     }
 
     switch (request_type) {
@@ -931,8 +918,10 @@ inline void wamp_session::process_error(wamp_message&& message)
                 auto call_itr = m_calls.find(request_id);
 
                 if (call_itr != m_calls.end()) {
-                    // FIXME: Forward all error info.
-                    call_itr->second->result().set_exception(std::runtime_error(error));
+                    msgpack::object details = message.field(3);
+                    msgpack::object args = message.field(5);
+                    msgpack::object kw_args = message.field(6);
+                    call_itr->second->result().set_exception(wamp_error(request_type, request_id, error_uri, details, args, kw_args, message.zone()));
                     m_calls.erase(call_itr);
                 } else {
                     throw protocol_error("bogus ERROR message for non-pending CALL request ID");
