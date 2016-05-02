@@ -45,7 +45,7 @@ public:
             const msgpack::object& details,
             const msgpack::object& args,
             const msgpack::object& kwargs,
-            const msgpack::zone& zone);
+            msgpack::zone& zone);
 
     wamp_error(const wamp_error &other);
 

@@ -28,8 +28,6 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "wamp_rror.hpp"
-
 namespace autobahn {
 
 inline wamp_error::wamp_error(
@@ -39,7 +37,7 @@ inline wamp_error::wamp_error(
         const msgpack::object& details,
         const msgpack::object& args,
         const msgpack::object& kwargs,
-        const msgpack::zone& zone)
+        msgpack::zone& zone)
     : std::runtime_error(uri)
     , m_type(type)
     , m_id(id)
