@@ -46,7 +46,9 @@
 #include "wamp_authenticate.hpp"
 #include "wamp_challenge.hpp"
 
+#ifndef NO_WAMP_SSL
 #include "wamp_auth_utils.hpp"
+#endif
 
 #if !(defined(_WIN32) || defined(WIN32))
 #include <arpa/inet.h>
@@ -368,7 +370,7 @@ inline boost::future<void> wamp_session::unsubscribe(const wamp_subscription& su
     message->set_field(2, subscription.id());
 
     auto weak_self = std::weak_ptr<wamp_session>(this->shared_from_this());
-    auto unsubscribe_request = std::make_shared<wamp_unsubscribe_request>();
+    auto unsubscribe_request = std::make_shared<wamp_unsubscribe_request>(subscription);
 
     m_io_service.dispatch([=]() {
         auto shared_self = weak_self.lock();
@@ -533,7 +535,7 @@ inline boost::future<void> wamp_session::unprovide(const wamp_registration& regi
 	message->set_field(2, registration.id());
 
 	auto weak_self = std::weak_ptr<wamp_session>(this->shared_from_this());
-	auto unregister_request = std::make_shared<wamp_unregister_request>();
+	auto unregister_request = std::make_shared<wamp_unregister_request>(registration);
 
 	m_io_service.dispatch([=]() {
 		auto shared_self = weak_self.lock();
@@ -553,7 +555,7 @@ inline boost::future<void> wamp_session::unprovide(const wamp_registration& regi
 	return unregister_request->response().get_future();
 }
 
-boost::future<wamp_authenticate> wamp_session::on_challenge(const wamp_challenge& challenge)
+inline boost::future<wamp_authenticate> wamp_session::on_challenge(const wamp_challenge& challenge)
 {
     // a dummy implementation
     boost::promise<wamp_authenticate> dummy;
@@ -687,7 +689,7 @@ inline void wamp_session::on_message(wamp_message&& message)
     }
 }
 
-void wamp_session::process_challenge(wamp_message&& message)
+inline void wamp_session::process_challenge(wamp_message&& message)
 {
     // kind of authentication
     std::string whatAuth = message.field<std::string>(1);
@@ -739,7 +741,7 @@ void wamp_session::process_challenge(wamp_message&& message)
             // make the challenge object
             challenge_object = wamp_challenge("wampcra",challenge,salt,iterations,keylen);
 
-        } catch (const std::exception& e) {
+        } catch (const std::exception&) {
             if (m_debug_enabled) {
                 std::cerr << "failed to parse challenge details" << std::endl;
             }
@@ -781,7 +783,7 @@ void wamp_session::process_challenge(wamp_message&& message)
 
                 try {
                     send_message(std::move(*message), false);
-                } catch (const std::exception& e) {
+                } catch (const std::exception&) {
                     if (m_debug_enabled) {
                         std::cerr << "failed to handle authentication" << std::endl;
                     }
@@ -791,7 +793,7 @@ void wamp_session::process_challenge(wamp_message&& message)
 
             // make sure the context_response is copied into this lambda...
             context_response.get();
-        } catch (const std::exception& e) {
+        } catch (const std::exception&) {
             if (m_debug_enabled) {
                 std::cerr << "failed to handle authentication" << std::endl;
             }
@@ -892,7 +894,7 @@ inline void wamp_session::process_error(wamp_message&& message)
     if (!message.is_field_type(4, msgpack::type::STR)) {
         throw protocol_error("invalid ERROR message - Error must be a string (URI)");
     }
-    auto error = std::move(message.field<std::string>(4));
+    auto error_uri = std::move(message.field<std::string>(4));
 
     // Arguments|list
     if (message.size() > 5) {
