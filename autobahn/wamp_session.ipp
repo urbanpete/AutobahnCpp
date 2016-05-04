@@ -1269,4 +1269,9 @@ inline const std::unordered_map<std::string, msgpack::object>&  wamp_session::we
     return m_welcome_details;
 }
 
+inline bool wamp_session::is_connected()
+{
+    return m_session_id != 0;
+}
+ 
 } // namespace autobahn

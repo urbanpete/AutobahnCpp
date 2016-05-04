@@ -290,6 +290,8 @@ public:
     */
     const std::unordered_map<std::string, msgpack::object>& welcome_details();
 
+    bool is_connected();
+
 private:
     // Implements the wamp transport handler interface.
     virtual void on_attach(const std::shared_ptr<wamp_transport>& transport) override;
